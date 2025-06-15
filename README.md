@@ -23,17 +23,72 @@
 - 註冊訊息處理器
 - 支援 QoS 等級設定
 
-## 安裝
+## 安裝與設定
 
 ### 前置需求
 - Node.js 18.0.0 或更高版本
 - npm 或 yarn
+- [Cursor IDE](https://cursor.sh/) (如果要在 Cursor 中使用)
 
-### 安裝步驟
+### 🚀 快速安裝 (推薦)
+
+#### 1. 全域安裝 MCP API Bridge
+
+```bash
+npm install -g https://github.com/marty5499/mcp-api-bridge.git
+```
+
+#### 2. 在 Cursor 中設定 MCP
+
+找到並編輯 Cursor 的 MCP 設定檔案：
+
+**macOS:**
+```bash
+~/.cursor/mcp.json
+```
+
+**Linux:**
+```bash
+~/.config/cursor/mcp.json
+```
+
+**Windows:**
+```bash
+%APPDATA%\Cursor\mcp.json
+```
+
+在設定檔案中加入以下配置：
+
+```json
+{
+  "mcpServers": {
+    "api-bridge": {
+      "command": "mcp-api-bridge",
+      "env": {}
+    }
+  }
+}
+```
+
+#### 3. 重啟 Cursor
+
+重啟 Cursor IDE 使設定生效。
+
+### 🔄 更新到最新版本
+
+當有新版本發布時，使用以下命令更新：
+
+```bash
+npm update -g https://github.com/marty5499/mcp-api-bridge.git
+```
+
+### 🛠️ 開發者安裝 (本地開發)
+
+如果您想要修改或開發此專案：
 
 1. 複製專案
 ```bash
-git clone <repository-url>
+git clone https://github.com/marty5499/mcp-api-bridge.git
 cd mcp-api-bridge
 ```
 
@@ -42,32 +97,24 @@ cd mcp-api-bridge
 npm install
 ```
 
-3. 啟動 MCP 伺服器
+3. 本地測試
 ```bash
-npm start
-```
+# 測試工具列表
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}' | node mcp-api-bridge.js
 
-或使用開發模式（檔案監控）：
-```bash
+# 啟動開發模式（檔案監控）
 npm run dev
 ```
 
 ## 使用方式
 
-### MCP 客戶端設定
+### ✅ 驗證安裝
 
-在您的 MCP 客戶端設定中新增此伺服器：
+安裝完成後，您可以在 Cursor 中看到 MCP API Bridge 伺服器已連線，並可使用以下 11 個工具：
 
-```json
-{
-  "servers": {
-    "api-bridge": {
-      "command": "node",
-      "args": ["/path/to/mcp-api-bridge.js"]
-    }
-  }
-}
-```
+- **Google Sheets API (5個工具)**：產生 API 操作程式碼範例
+- **Azure AI API (1個工具)**：產生 AI 對話程式碼範例  
+- **MQTT API (5個工具)**：完整的 IoT 裝置管理功能
 
 ### 可用工具
 
@@ -264,9 +311,18 @@ mcp-api-bridge/
 │   └── iotDevice.js      # MQTT IoT 裝置類別
 ├── examples/
 │   └── usage-examples.js # 使用範例
+├── docs/
+│   └── changelog.md      # 變更日誌
 ├── package.json          # 專案設定
+├── .gitignore           # Git 忽略設定
 └── README.md            # 專案說明
 ```
+
+### 📦 GitHub 儲存庫
+
+- **儲存庫 URL**: https://github.com/marty5499/mcp-api-bridge
+- **授權**: MIT License
+- **語言**: JavaScript (Node.js)
 
 ## 開發指南
 
@@ -282,8 +338,34 @@ mcp-api-bridge/
 # 執行範例
 node examples/usage-examples.js
 
-# 測試 MCP 伺服器
+# 測試 MCP 伺服器連線
 echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}' | node mcp-api-bridge.js
+
+# 測試特定工具 (Google Sheets)
+echo '{"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "google_sheet_get", "arguments": {"url": "https://docs.google.com/spreadsheets/d/test/edit"}}}' | node mcp-api-bridge.js
+
+# 測試全域安裝版本
+echo '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}' | mcp-api-bridge
+```
+
+### 🔧 疑難排解
+
+#### 問題：Cursor 中看不到 MCP 伺服器
+1. 檢查 `~/.cursor/mcp.json` 設定檔案格式是否正確
+2. 確認已重啟 Cursor IDE
+3. 檢查終端機中是否能執行 `mcp-api-bridge` 命令
+
+#### 問題：工具調用失敗
+1. 檢查網路連線狀況
+2. 確認 API 端點可正常訪問
+3. 查看 MCP 伺服器日誌輸出
+
+#### 問題：更新後功能異常
+```bash
+# 清除 npm 快取並重新安裝
+npm cache clean --force
+npm uninstall -g mcp-api-bridge
+npm install -g https://github.com/marty5499/mcp-api-bridge.git
 ```
 
 ## 授權
@@ -295,6 +377,16 @@ MIT License
 歡迎提交 Issues 和 Pull Requests！
 
 ## 更新日誌
+
+### v1.0.2 (2025-01-15)
+- 🔧 修正 Google Sheets API 工具功能 - 產生程式碼範例而非直接調用 API
+- 🚀 支援全域安裝和 Cursor MCP 配置
+- 📖 完整的安裝和配置指南
+- 🛠️ 疑難排解和測試指南
+
+### v1.0.1 (2024-01-20)
+- 🔧 修正 Azure AI API 工具功能定位
+- 📖 更新相關文件和範例
 
 ### v1.0.0 (2024-01-20)
 - 初始版本發布
