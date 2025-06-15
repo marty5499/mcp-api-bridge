@@ -1,0 +1,34 @@
+{
+  "name": "mcp-api-bridge",
+  "version": "1.0.2",
+  "description": "MCP server for bridging Google Sheets, Azure AI, and MQTT APIs",
+  "type": "module",
+  "main": "mcp-api-bridge.js",
+  "bin": {
+    "mcp-api-bridge": "./mcp-api-bridge.js"
+  },
+  "scripts": {
+    "start": "node mcp-api-bridge.js",
+    "dev": "node --watch mcp-api-bridge.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "google-sheets",
+    "azure-ai",
+    "mqtt",
+    "api-bridge"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.18.0",
+    "mqtt": "^5.10.0",
+    "uuid": "^10.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 

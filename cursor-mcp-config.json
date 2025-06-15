@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "api-bridge": {
+      "command": "node",
+      "args": ["/Users/sheuyih-shiang/kingkit.codes/2025/mcp-api-bridge/mcp-api-bridge.js"],
+      "env": {}
+    }
+  }
+} 
