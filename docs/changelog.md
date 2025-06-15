@@ -1,5 +1,69 @@
 # 變更日誌 (Changelog)
 
+## [1.0.3] - 2025-06-16
+
+### 新增功能 (Added)
+- 🚀 **智能 API 匹配系統**
+  - 新增工具別名支援，提供多種呼叫方式
+  - 實作模糊匹配功能，支援相似名稱自動識別
+  - 建立關鍵字匹配系統，支援中英文關鍵字搜尋
+  - 新增字串相似度匹配 (Levenshtein 距離算法)
+
+### 改善 (Improved)
+- 🎯 **提升 API 發現準確性**
+  - 支援別名調用：如 `sheet_add` → `google_sheet_append`
+  - 關鍵字智能匹配：如 `新增` → `google_sheet_append`
+  - 模糊字串匹配：如 `google_sheet_add` → `google_sheet_append`
+  - 多語言支援：中文關鍵字匹配 (新增、讀取、更新、刪除等)
+
+- 🔧 **改善錯誤處理機制**
+  - 當工具名稱不匹配時，提供智能建議
+  - 顯示匹配信心度和匹配原因
+  - 提供多個相似工具選項
+  - 包含工具描述和功能說明
+
+- 📊 **工具分類系統**
+  - Google Sheets 操作類別
+  - Azure AI 服務類別
+  - MQTT/IoT 設備類別
+  - 每個工具包含操作類型標籤
+
+### 技術實作 (Technical Implementation)
+- 建立 `toolMetadata` 系統，包含：
+  - 別名映射 (`aliasMap`)
+  - 關鍵字索引 (`keywordMap`)
+  - 工具分類和操作類型
+- 實作 Levenshtein 距離算法進行字串相似度計算
+- 新增 `findBestMatches()` 方法，支援多種匹配策略
+- 改進 `CallToolRequestSchema` 處理流程
+- 新增智能路由機制，自動選擇最佳匹配工具
+
+### 別名對照表
+```
+Google Sheets:
+- google_sheet_append → sheet_add, sheet_append, google_sheet_add
+- google_sheet_get → sheet_get, sheet_read, google_sheet_read
+- google_sheet_update → sheet_update, sheet_edit, google_sheet_modify
+- google_sheet_delete → sheet_delete, sheet_remove, google_sheet_remove
+- google_sheet_save → sheet_save, sheet_replace, google_sheet_overwrite
+
+Azure AI:
+- azure_ai_chat → ai_chat, gpt_chat, azure_ai, openai_chat
+
+MQTT:
+- mqtt_device_create → mqtt_create, iot_device_create, device_create
+- mqtt_publish → mqtt_send, iot_publish, device_publish
+- mqtt_publish_sync → mqtt_send_sync, mqtt_request, iot_publish_sync
+- mqtt_register_handler → mqtt_handler, mqtt_callback, iot_handler
+- mqtt_subscribe → mqtt_listen, iot_subscribe, device_subscribe
+```
+
+### 支援的關鍵字
+- **中文**: 新增、添加、插入、讀取、查詢、獲取、更新、修改、編輯、刪除、移除、儲存、覆蓋、對話、聊天、人工智慧、建立、創建、裝置、物聯網、發布、發送、傳送、訊息、同步發布、註冊、處理器、回調、事件、訂閱、監聽、接收
+- **英文**: append, add, insert, get, read, fetch, update, modify, edit, delete, remove, save, overwrite, replace, chat, ai, gpt, azure, create, device, iot, mqtt, publish, send, message, sync, request, response, handler, callback, register, subscribe, listen, receive
+
+---
+
 ## [1.0.2] - 2025-06-15
 
 ### 重大修正 (Fixed)

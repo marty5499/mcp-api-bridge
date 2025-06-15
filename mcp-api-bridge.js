@@ -24,7 +24,283 @@ class ApiMcpServer {
       }
     );
 
+    // 初始化工具元數據
+    this.initializeToolMetadata();
     this.setupToolHandlers();
+  }
+
+  // 工具元數據定義
+  initializeToolMetadata() {
+    this.toolMetadata = {
+      'google_sheet_append': {
+        aliases: ['google_sheet_add', 'google_sheet_insert', 'sheet_append', 'sheet_add'],
+        keywords: ['新增', '添加', '插入', '試算表', 'spreadsheet', 'append', 'add', 'insert'],
+        category: 'google_sheets',
+        operation: 'create'
+      },
+      'google_sheet_get': {
+        aliases: ['google_sheet_read', 'google_sheet_fetch', 'sheet_get', 'sheet_read'],
+        keywords: ['讀取', '查詢', '獲取', '取得', '試算表', 'spreadsheet', 'get', 'read', 'fetch'],
+        category: 'google_sheets',
+        operation: 'read'
+      },
+      'google_sheet_update': {
+        aliases: ['google_sheet_modify', 'google_sheet_edit', 'sheet_update', 'sheet_edit'],
+        keywords: ['更新', '修改', '編輯', '試算表', 'spreadsheet', 'update', 'modify', 'edit'],
+        category: 'google_sheets',
+        operation: 'update'
+      },
+      'google_sheet_delete': {
+        aliases: ['google_sheet_remove', 'sheet_delete', 'sheet_remove'],
+        keywords: ['刪除', '移除', '試算表', 'spreadsheet', 'delete', 'remove'],
+        category: 'google_sheets',
+        operation: 'delete'
+      },
+      'google_sheet_save': {
+        aliases: ['google_sheet_overwrite', 'sheet_save', 'sheet_replace'],
+        keywords: ['儲存', '覆蓋', '取代', '試算表', 'spreadsheet', 'save', 'overwrite', 'replace'],
+        category: 'google_sheets',
+        operation: 'save'
+      },
+      'azure_ai_chat': {
+        aliases: ['azure_ai', 'ai_chat', 'gpt_chat', 'openai_chat'],
+        keywords: ['對話', '聊天', '人工智慧', 'ai', 'chat', 'gpt', 'azure', '問答'],
+        category: 'ai_services',
+        operation: 'chat'
+      },
+      'mqtt_device_create': {
+        aliases: ['mqtt_create', 'iot_device_create', 'device_create'],
+        keywords: ['建立', '創建', '裝置', '物聯網', 'mqtt', 'iot', 'device', 'create'],
+        category: 'iot',
+        operation: 'create'
+      },
+      'mqtt_publish': {
+        aliases: ['mqtt_send', 'iot_publish', 'device_publish'],
+        keywords: ['發布', '發送', '傳送', '訊息', 'mqtt', 'publish', 'send', 'message'],
+        category: 'iot',
+        operation: 'publish'
+      },
+      'mqtt_publish_sync': {
+        aliases: ['mqtt_send_sync', 'mqtt_request', 'iot_publish_sync'],
+        keywords: ['同步發布', '同步發送', '等待回應', 'mqtt', 'sync', 'request', 'response'],
+        category: 'iot',
+        operation: 'publish_sync'
+      },
+      'mqtt_register_handler': {
+        aliases: ['mqtt_handler', 'mqtt_callback', 'iot_handler'],
+        keywords: ['註冊', '處理器', '回調', '事件', 'mqtt', 'handler', 'callback', 'register'],
+        category: 'iot',
+        operation: 'register'
+      },
+      'mqtt_subscribe': {
+        aliases: ['mqtt_listen', 'iot_subscribe', 'device_subscribe'],
+        keywords: ['訂閱', '監聽', '接收', 'mqtt', 'subscribe', 'listen', 'receive'],
+        category: 'iot',
+        operation: 'subscribe'
+      }
+    };
+
+    // 建立反向索引以便快速查找
+    this.aliasMap = new Map();
+    this.keywordMap = new Map();
+    
+    for (const [toolName, metadata] of Object.entries(this.toolMetadata)) {
+      // 建立別名映射
+      for (const alias of metadata.aliases) {
+        this.aliasMap.set(alias.toLowerCase(), toolName);
+      }
+      
+      // 建立關鍵字映射
+      for (const keyword of metadata.keywords) {
+        if (!this.keywordMap.has(keyword.toLowerCase())) {
+          this.keywordMap.set(keyword.toLowerCase(), []);
+        }
+        this.keywordMap.get(keyword.toLowerCase()).push(toolName);
+      }
+    }
+  }
+
+  // 模糊匹配功能
+  findBestMatches(input, maxSuggestions = 5) {
+    const inputLower = input.toLowerCase();
+    const matches = [];
+
+    // 1. 精確匹配工具名稱
+    if (this.toolMetadata[input]) {
+      return [{ tool: input, confidence: 1.0, reason: '精確匹配' }];
+    }
+
+    // 2. 別名匹配
+    if (this.aliasMap.has(inputLower)) {
+      const toolName = this.aliasMap.get(inputLower);
+      matches.push({ tool: toolName, confidence: 0.95, reason: '別名匹配' });
+    }
+
+    // 3. 關鍵字匹配
+    for (const [keyword, tools] of this.keywordMap) {
+      if (keyword.includes(inputLower) || inputLower.includes(keyword)) {
+        for (const tool of tools) {
+          const confidence = this.calculateKeywordConfidence(inputLower, keyword);
+          matches.push({ tool, confidence, reason: `關鍵字匹配: ${keyword}` });
+        }
+      }
+    }
+
+    // 4. 模糊字串匹配
+    for (const toolName of Object.keys(this.toolMetadata)) {
+      const similarity = this.calculateStringSimilarity(inputLower, toolName.toLowerCase());
+      if (similarity > 0.4) {
+        matches.push({ tool: toolName, confidence: similarity * 0.8, reason: '字串相似度匹配' });
+      }
+    }
+
+    // 去重並排序
+    const uniqueMatches = new Map();
+    for (const match of matches) {
+      if (!uniqueMatches.has(match.tool) || uniqueMatches.get(match.tool).confidence < match.confidence) {
+        uniqueMatches.set(match.tool, match);
+      }
+    }
+
+    return Array.from(uniqueMatches.values())
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, maxSuggestions);
+  }
+
+  // 計算關鍵字匹配置信度
+  calculateKeywordConfidence(input, keyword) {
+    if (input === keyword) return 0.9;
+    if (input.includes(keyword) || keyword.includes(input)) return 0.7;
+    return 0.5;
+  }
+
+  // 計算字串相似度 (簡化版 Levenshtein 距離)
+  calculateStringSimilarity(str1, str2) {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  // Levenshtein 距離計算
+  levenshteinDistance(str1, str2) {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+
+  // 生成建議訊息
+  generateSuggestionMessage(originalTool, matches) {
+    if (matches.length === 0) {
+      return `未找到工具 "${originalTool}"。\n\n可用的工具類別包括：\n• Google Sheets 操作 (google_sheet_*)\n• Azure AI 對話 (azure_ai_chat)\n• MQTT 物聯網 (mqtt_*)`;
+    }
+
+    let message = `未找到精確匹配的工具 "${originalTool}"。\n\n以下是相似的工具建議：\n`;
+    
+    for (let i = 0; i < Math.min(matches.length, 3); i++) {
+      const match = matches[i];
+      const metadata = this.toolMetadata[match.tool];
+      message += `\n${i + 1}. **${match.tool}** (信心度: ${(match.confidence * 100).toFixed(0)}%)\n`;
+      message += `   原因: ${match.reason}\n`;
+      message += `   描述: ${this.getToolDescription(match.tool)}\n`;
+    }
+
+    return message;
+  }
+
+  // 獲取工具描述
+  getToolDescription(toolName) {
+    const descriptions = {
+      'google_sheet_append': '新增一列資料到 Google 試算表',
+      'google_sheet_get': '讀取 Google 試算表的所有資料',
+      'google_sheet_update': '更新 Google 試算表指定列的資料',
+      'google_sheet_delete': '刪除 Google 試算表指定列的資料',
+      'google_sheet_save': '覆蓋整張 Google 試算表的資料',
+      'azure_ai_chat': '使用 Azure AI 進行對話互動',
+      'mqtt_device_create': '建立 MQTT IoT 裝置連線',
+      'mqtt_publish': '發布 MQTT 訊息到指定主題',
+      'mqtt_publish_sync': '同步發布 MQTT 訊息並等待回應',
+      'mqtt_register_handler': '註冊 MQTT 訊息處理器',
+      'mqtt_subscribe': '訂閱 MQTT 主題以接收訊息'
+    };
+    return descriptions[toolName] || '無描述';
+  }
+
+  // 精確匹配工具名稱（包括別名）
+  getExactToolMatch(input) {
+    // 檢查是否為正式工具名稱
+    if (this.toolMetadata[input]) {
+      return input;
+    }
+    
+    // 檢查是否為別名
+    const aliasMatch = this.aliasMap.get(input.toLowerCase());
+    if (aliasMatch) {
+      return aliasMatch;
+    }
+    
+    return null;
+  }
+
+  // 根據工具名稱執行對應的處理器
+  async executeToolByName(toolName, args) {
+    switch (toolName) {
+      // Google Sheet API 相關工具
+      case 'google_sheet_append':
+        return await this.handleGoogleSheetAppend(args);
+      case 'google_sheet_get':
+        return await this.handleGoogleSheetGet(args);
+      case 'google_sheet_update':
+        return await this.handleGoogleSheetUpdate(args);
+      case 'google_sheet_delete':
+        return await this.handleGoogleSheetDelete(args);
+      case 'google_sheet_save':
+        return await this.handleGoogleSheetSave(args);
+
+      // Azure AI API 相關工具
+      case 'azure_ai_chat':
+        return await this.handleAzureAiChat(args);
+
+      // MQTT API 相關工具
+      case 'mqtt_device_create':
+        return await this.handleMqttDeviceCreate(args);
+      case 'mqtt_publish':
+        return await this.handleMqttPublish(args);
+      case 'mqtt_publish_sync':
+        return await this.handleMqttPublishSync(args);
+      case 'mqtt_register_handler':
+        return await this.handleMqttRegisterHandler(args);
+      case 'mqtt_subscribe':
+        return await this.handleMqttSubscribe(args);
+
+      default:
+        throw new Error(`內部錯誤：未知的工具 "${toolName}"`);
+    }
   }
 
   setupToolHandlers() {
@@ -283,44 +559,29 @@ class ApiMcpServer {
       const { name, arguments: args } = request.params;
 
       try {
-        switch (name) {
-          // Google Sheet API 相關工具
-          case 'google_sheet_append':
-            return await this.handleGoogleSheetAppend(args);
-          case 'google_sheet_get':
-            return await this.handleGoogleSheetGet(args);
-          case 'google_sheet_update':
-            return await this.handleGoogleSheetUpdate(args);
-          case 'google_sheet_delete':
-            return await this.handleGoogleSheetDelete(args);
-          case 'google_sheet_save':
-            return await this.handleGoogleSheetSave(args);
+        // 首先嘗試精確匹配
+        const exactMatch = this.getExactToolMatch(name);
+        if (exactMatch) {
+          return await this.executeToolByName(exactMatch, args);
+        }
 
-          // Azure AI API 相關工具
-          case 'azure_ai_chat':
-            return await this.handleAzureAiChat(args);
-
-          // MQTT API 相關工具
-          case 'mqtt_device_create':
-            return await this.handleMqttDeviceCreate(args);
-          case 'mqtt_publish':
-            return await this.handleMqttPublish(args);
-          case 'mqtt_publish_sync':
-            return await this.handleMqttPublishSync(args);
-          case 'mqtt_register_handler':
-            return await this.handleMqttRegisterHandler(args);
-          case 'mqtt_subscribe':
-            return await this.handleMqttSubscribe(args);
-
-          default:
-            throw new Error(`未知的工具: ${name}`);
+        // 如果沒有精確匹配，進行模糊匹配
+        const matches = this.findBestMatches(name);
+        
+        if (matches.length > 0 && matches[0].confidence > 0.8) {
+          // 如果最佳匹配的信心度很高，直接執行
+          return await this.executeToolByName(matches[0].tool, args);
+        } else {
+          // 否則提供建議
+          const suggestionMessage = this.generateSuggestionMessage(name, matches);
+          throw new Error(suggestionMessage);
         }
       } catch (error) {
         return {
           content: [
             {
               type: 'text',
-              text: `錯誤: ${error.message}`,
+              text: `${error.message}`,
             },
           ],
           isError: true,
@@ -1011,5 +1272,11 @@ streamAzureAI(
   }
 }
 
-const server = new ApiMcpServer();
-server.run().catch(console.error);
+// 導出類以供測試使用
+export { ApiMcpServer };
+
+// 只有當直接執行此文件時才啟動服務器
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const server = new ApiMcpServer();
+  server.run().catch(console.error);
+}
