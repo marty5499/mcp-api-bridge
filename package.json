@@ -7,6 +7,10 @@
   "bin": {
     "mcp-api-bridge": "./mcp-api-bridge.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/marty5499/mcp-api-bridge.git"
+  },
   "scripts": {
     "start": "node mcp-api-bridge.js",
     "dev": "node --watch mcp-api-bridge.js",
